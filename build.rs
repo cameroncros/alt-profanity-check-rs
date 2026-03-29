@@ -1,8 +1,12 @@
 use std::{path::Path, process::Command};
-
+use std::fs::File;
 use walkdir::WalkDir;
 
 fn main() {
+    if std::env::var("DOCS_RS").is_ok() {
+        println!("cargo:rustc-cfg=docs_build");
+        return;
+    }
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/model.onnx");
     println!("cargo:rerun-if-changed=src/vectorizer_params.json");

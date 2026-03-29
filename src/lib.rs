@@ -26,6 +26,9 @@ static MODEL: OnceLock<Mutex<Session>> = OnceLock::new();
 
 fn get_vectorizer_params() -> &'static VectorizerParams {
     VECTORIZER_PARAMS.get_or_init(|| {
+        #[cfg(feature = "docs_build")]
+        let json_str = "file wont exist for docs build.";
+        #[cfg(not(feature = "docs_build"))]
         let json_str = include_str!("vectorizer_params.json");
         serde_json::from_str(json_str).expect("Failed to parse vectorizer params")
     })
@@ -99,10 +102,15 @@ pub fn predict_prob(text: &str) -> ProfanityResult<f32> {
 
     // Load the model
     let model = MODEL.get_or_try_init(|| {
+        #[cfg(feature = "docs_build")]
+        let model_bytes = vec![];
+        #[cfg(not(feature = "docs_build"))]
+        let model_bytes = include_bytes!("model.onnx").to_vec();
+
         Ok::<Mutex<Session>, ProfanityError>(Mutex::new(
             Session::builder()
                 .map_err(SessionError)?
-                .commit_from_memory(include_bytes!("model.onnx"))
+                .commit_from_memory(&model_bytes)
                 .map_err(CommitError)?,
         ))
     })?;
