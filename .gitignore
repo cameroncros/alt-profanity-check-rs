@@ -1,0 +1,7 @@
+/target
+build_venv/
+.venv/
+.idea/
+src/model.onnx
+src/vectorizer_params.json
+
