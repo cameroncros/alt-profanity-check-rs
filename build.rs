@@ -1,5 +1,4 @@
 use std::{path::Path, process::Command};
-use std::fs::File;
 use walkdir::WalkDir;
 
 fn main() {
@@ -23,7 +22,7 @@ fn main() {
     // Create the virtual environment if it doesn't exist
     println!("Creating virtual environment...");
     let status = Command::new("python3")
-        .args(["-m", "venv", &venv_dir])
+        .args(["-m", "venv", venv_dir])
         .status()
         .expect("Failed to create virtual environment");
 
@@ -71,7 +70,7 @@ fn main() {
     }
 
     // Find models in venv.
-    let vectoriser_dir = WalkDir::new(&venv_dir)
+    let vectoriser_dir = WalkDir::new(venv_dir)
         .into_iter()
         .find(|e| {
             if let Ok(e) = e {
@@ -83,7 +82,7 @@ fn main() {
         .unwrap()
         .unwrap();
     let vectoriser = vectoriser_dir.path().to_string_lossy();
-    let model_dir = WalkDir::new(&venv_dir)
+    let model_dir = WalkDir::new(venv_dir)
         .into_iter()
         .find(|e| {
             if let Ok(e) = e {

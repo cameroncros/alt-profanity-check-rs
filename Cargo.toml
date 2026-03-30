@@ -1,12 +1,15 @@
 [package]
 name = "alt-profanity-check-rs"
-version = "0.1.5"
+version = "0.1.7"
 edition = "2024"
 description = "Rust port of alt-profanity-check"
 license = "MIT"
 
 [features]
 docs_build = []
+
+[package.metadata.docs.rs]
+features = ["docs_build"]
 
 [dependencies]
 ort = "2.0.0-rc.8"
