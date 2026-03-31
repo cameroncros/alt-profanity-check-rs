@@ -1,18 +1,12 @@
-#![feature(once_cell_try)]
-
 mod errors;
 
-use std::{
-    collections::HashMap,
-    sync::{Mutex, OnceLock},
-};
-
+use crate::errors::{ProfanityError, ProfanityError::*, ProfanityResult};
 use ndarray::Array2;
 use ort::{session::Session, value::Value};
 use regex::Regex;
 use serde::Deserialize;
-
-use crate::errors::{ProfanityError, ProfanityError::*, ProfanityResult};
+use std::sync::OnceLock;
+use std::{collections::HashMap, sync::Mutex};
 
 #[derive(Deserialize)]
 struct VectorizerParams {
@@ -21,17 +15,28 @@ struct VectorizerParams {
     stop_words: Vec<String>,
 }
 
-static VECTORIZER_PARAMS: OnceLock<VectorizerParams> = OnceLock::new();
-static MODEL: OnceLock<Mutex<Session>> = OnceLock::new();
+static VECTORIZER_PARAMS: OnceLock<Option<VectorizerParams>> = OnceLock::new();
+static MODEL: OnceLock<Option<Mutex<Session>>> = OnceLock::new();
 
-fn get_vectorizer_params() -> &'static VectorizerParams {
-    VECTORIZER_PARAMS.get_or_init(|| {
+fn get_vectorizer_params() -> ProfanityResult<&'static VectorizerParams> {
+    match VECTORIZER_PARAMS.get_or_init(|| {
         #[cfg(feature = "docs_build")]
         let json_str = "file wont exist for docs build.";
         #[cfg(not(feature = "docs_build"))]
         let json_str = include_str!("vectorizer_params.json");
-        serde_json::from_str(json_str).expect("Failed to parse vectorizer params")
-    })
+        match serde_json::from_str(json_str) {
+            Ok(p) => {
+                Some(p)
+            },
+            Err(e) => {
+                log::error!("Failed to load vectorisation params - {e}");
+                None
+            }
+        }
+    }) {
+        None => {Err(FailedToGetVectorisationParams)}
+        Some(p) => {Ok(p)}
+    }
 }
 
 fn tokenize(text: &str) -> Vec<String> {
@@ -44,8 +49,9 @@ fn tokenize(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn vectorize_text(text: &str) -> Vec<f32> {
-    let params = get_vectorizer_params();
+fn vectorize_text(text: &str) -> ProfanityResult<Vec<f32>> {
+    let params = get_vectorizer_params()?;
+
     let tokens = tokenize(text);
 
     // Count term frequencies
@@ -83,7 +89,7 @@ fn vectorize_text(text: &str) -> Vec<f32> {
         }
     }
 
-    tfidf_vector
+    Ok(tfidf_vector)
 }
 
 /// Predicts the probability that the given text is profane.
@@ -98,22 +104,35 @@ fn vectorize_text(text: &str) -> Vec<f32> {
 /// a higher likelihood of profanity.
 pub fn predict_prob(text: &str) -> ProfanityResult<f32> {
     // Vectorize the text using TF-IDF
-    let features = vectorize_text(text);
+    let features = vectorize_text(text)?;
 
     // Load the model
-    let model = MODEL.get_or_try_init(|| {
+    let model = MODEL.get_or_init(|| {
         #[cfg(feature = "docs_build")]
         let model_bytes = vec![];
         #[cfg(not(feature = "docs_build"))]
         let model_bytes = include_bytes!("model.onnx").to_vec();
 
-        Ok::<Mutex<Session>, ProfanityError>(Mutex::new(
-            Session::builder()
-                .map_err(SessionError)?
-                .commit_from_memory(&model_bytes)
-                .map_err(CommitError)?,
-        ))
-    })?;
+        let mut session_builder = match Session::builder() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Failed to create session - {e}");
+                return None;
+            }
+        };
+        let session = match session_builder.commit_from_memory(&model_bytes) {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Failed to commit from memory - {e}");
+                return None;
+            }
+        };
+        Some(Mutex::new(session))
+    });
+    let Some(model) = model else {
+        return Err(FailedToGetModel);
+    };
+
     // Create tensor input
     let input_array = Array2::from_shape_vec((1, features.len()), features)?;
     let input_tensor = Value::from_array(input_array).map_err(FromArrayError)?;
@@ -176,6 +195,11 @@ mod tests {
             first
         });
         probability
+    }
+
+    #[test]
+    fn test_prob() {
+        println!("{}", predict_prob("Fuck the fucking fuckers").unwrap())
     }
 
     #[test]

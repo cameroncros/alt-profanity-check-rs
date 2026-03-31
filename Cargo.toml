@@ -1,6 +1,6 @@
 [package]
 name = "alt-profanity-check-rs"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 description = "Rust port of alt-profanity-check"
 license = "MIT"
@@ -18,6 +18,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 regex = "1.11"
 thiserror = "2.0.18"
+log = "0.4.29"
 
 [dev-dependencies]
 pyo3 = "0.28.2"

@@ -10,12 +10,8 @@ pub type ProfanityResult<T> = Result<T, ProfanityError>;
 pub enum ProfanityError {
     #[error("Failed to get lock on session")]
     PoisonError(#[from] PoisonError<MutexGuard<'static, Session>>),
-    #[error("Failed to create session")]
-    SessionError(Error),
     #[error("Failed from_shape_vec")]
     ShapeError(#[from] ShapeError),
-    #[error("Failed commit_from_memory")]
-    CommitError(Error),
     #[error("Failed from_array")]
     FromArrayError(Error),
     #[error("Failed run")]
@@ -26,6 +22,10 @@ pub enum ProfanityError {
     UnexpectedFormat,
     #[error("Couldn't find results")]
     CouldntFindResultError,
-    #[error("unknown error")]
+    #[error("Failed to load model")]
+    FailedToGetModel,
+    #[error("Failed to load vectorisation params")]
+    FailedToGetVectorisationParams,
+    #[error("Unknown error")]
     Unknown,
 }
