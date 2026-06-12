@@ -21,7 +21,7 @@ thiserror = "2.0.18"
 log = "0.4.29"
 
 [dev-dependencies]
-pyo3 = "0.28.2"
+pyo3 = "0.29.0"
 approx = "0.5.1"
 
 [build-dependencies]
